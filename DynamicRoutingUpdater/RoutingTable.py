@@ -64,7 +64,7 @@ class RoutingTable:
         """
         configuredTables: dict = {}
         self.deleteMyEntries()
-        acceptableTableIds = list(range(0, 255))
+        acceptableTableIds = list(range(100, 255))
         activeTablesCheck = re.compile(r"^(?!#)[0-9]+")
         for line in RoutingTable.getRoutingTables():
             activeIds = activeTablesCheck.findall(line)
