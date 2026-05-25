@@ -27,6 +27,19 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
 
+    - name: Generate version file
+      run: python version_update.py
+
+    - name: List Dependencies
+      run: pip freeze
+
+    - name: Test
+      run: python -m unittest discover -s ./tests
+
+    - name: Build package
+      run: python setup.py build
+
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
