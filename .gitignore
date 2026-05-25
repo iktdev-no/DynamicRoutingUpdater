@@ -2,3 +2,4 @@ DynamicRoutingUpdater/__pycache__
 reference.json
 build
 dist
+**.log
