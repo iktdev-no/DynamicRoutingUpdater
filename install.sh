@@ -26,9 +26,50 @@ echo -e "\033[1;35m
 \033[0m
 "
 
-prerequisites() {
+# Last inn distribusjonsinfo
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    DISTRO=$ID
+else
+    echo "Unsupported distro..."
+    exit 1
+fi
 
-    sudo apt install -y python3-pip python3-venv
+case $DISTRO in
+    ubuntu|debian)
+        PACKAGE_MANAGER="apt"
+        INSTALL_CMD="apt install -y"
+        ;;
+    fedora|nobara)
+        PACKAGE_MANAGER="dnf"
+        INSTALL_CMD="dnf install -y"
+        ;;
+    *)
+        echo "Distro $DISTRO is not supported."
+        exit 1
+        ;;
+esac
+
+echo "Supported distro: $DISTRO. Using package manager $PACKAGE_MANAGER."
+
+get_packages() {
+    case $DISTRO in
+        ubuntu|debian) echo "python3-pip python3-venv whiptail" ;;
+        fedora|nobara) echo "python3-pip python3-venv newt gcc" ;;
+    esac
+}
+
+prerequisites() {
+    # Her henter du listen dynamisk
+    local PKGS=$(get_packages)
+    
+    if [ -z "$PKGS" ]; then
+        echo "Kunne ikke finne pakkeliste for $DISTRO."
+        exit 1
+    fi
+
+    # Installer
+    sudo $PACKAGE_MANAGER $PKGS
     mkdir --parents /usr/local/dynamic-routing-updater/
     sudo chmod -R 0777 /usr/local/dynamic-routing-updater/
     python3 -m venv /usr/local/dynamic-routing-updater/venv
@@ -193,7 +234,7 @@ echo "DRU - DynamicIpWatcherAction: Registered change to network adpater $IFACE"
 if [ ! -z $IFACE ]; then
     echo -e "$IFACE\n" >> /tmp/dru-hook
 fi
-' | tee /etc/networkd-dispatcher/routable.d/dru-hook.sh > /usr/lib/networkd-dispatcher/routable.d/dru-hook.sh > /etc/NetworkManager/dispacher.d/dru-hook.sh 
+' | tee /etc/networkd-dispatcher/routable.d/dru-hook.sh > /usr/lib/networkd-dispatcher/routable.d/dru-hook.sh > /etc/NetworkManager/dispatcher.d/dru-hook.sh 
 
 
     echo "Creating DRU Service"
@@ -214,7 +255,7 @@ EOL
     CHMOD_FILES=(
     "/etc/networkd-dispatcher/routable.d/dru-hook.sh"
     "/usr/lib/networkd-dispatcher/routable.d/dru-hook.sh"
-    "/etc/NetworkManager/dispacher.d/dru-hook.sh"
+    "/etc/NetworkManager/dispatcher.d/dru-hook.sh"
     "/usr/local/dynamic-routing-updater/service.py"
     )
 

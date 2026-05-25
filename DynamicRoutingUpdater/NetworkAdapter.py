@@ -89,29 +89,34 @@ class NetworkAdapter:
 
 
     def parseNetstat(self, nic_name: str) -> List[Netstated]:
-        netstat_out = subprocess.getoutput(f"netstat -r -n -e -4 | grep {nic_name}").split("\n")
-        result = [s for s in netstat_out if s]
-        if (len(result) == 0):
-            return []
-        else:
-            entries: List[Netstated] = []
-            for line in result:
-                try:
-                    columns = re.split(r'\s+', line)
+            """
+            Moderne erstatning for netstat ved bruk av 'ip route'.
+            Returnerer samme datastruktur som tidligere.
+            """
+            try:
+                # Henter ruter for spesifikt interface i JSON-format
+                cmd = ["ip", "-4", "-j", "route", "show", "dev", nic_name]
+                output = subprocess.check_output(cmd).decode('utf-8')
+                data = json.loads(output)
+                
+                entries: List[Netstated] = []
+                for item in data:
+                    # Mapper JSON-verdier til streng-formatet Netstated forventer
                     entries.append(
                         Netstated(
-                            destination=columns[0],
-                            gateway=columns[1],
-                            genmask=columns[2],
-                            flags=columns[3],
-                            metric=columns[4],
-                            ref=columns[5],
-                            use=columns[6],
-                            iface=columns[7]
+                            destination=item.get("dst", "default"),
+                            gateway=item.get("gateway", "0.0.0.0"),
+                            genmask=str(item.get("prefixlen", "0")), 
+                            flags="UG" if item.get("gateway") else "U",
+                            metric=str(item.get("metric", "0")),
+                            ref="0",
+                            use="0",
+                            iface=nic_name
                         )
                     )
-                except:
-                    logging.exception("Failed to parse netstat")
-            return entries
-
-    
+                return entries
+            except Exception:
+                # Logg feil hvis kommandoen feiler, returner tom liste som før
+                logging.error(f"Failed to parse routes for {nic_name} via 'ip route'")
+                return []
+        
