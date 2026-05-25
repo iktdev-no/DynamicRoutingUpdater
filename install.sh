@@ -111,15 +111,38 @@ prerequisites() {
 
 
 backup() {
+    local etc_path="/etc/iproute2/rt_tables"
+    local usr_path="/usr/share/iproute2/rt_tables"
 
-    echo "Backing up rt_tables"
+    echo "Checking rt_tables status..."
 
-    if [ -f "/etc/iproute2/rt_tables.bak" ]; then
-        echo "rt_tables.bak already exists"
-    else
-        cp /etc/iproute2/rt_tables /etc/iproute2/rt_tables.bak
+    # Panic if both exist
+    if [ -f "$etc_path" ] && [ -f "$usr_path" ]; then
+        echo "PANIC: Both /etc/ and /usr/share/ rt_tables exist. Aborting to prevent configuration conflict."
+        return 1
     fi
 
+    # Panic if none exist
+    if [ ! -f "$etc_path" ] && [ ! -f "$usr_path" ]; then
+        echo "PANIC: No rt_tables file found. System configuration missing."
+        return 1
+    fi
+
+    # Determine which one to back up
+    local source
+    if [ -f "$etc_path" ]; then
+        source="$etc_path"
+    else
+        source="$usr_path"
+    fi
+
+    echo "Found active config at $source. Backing up..."
+
+    if [ -f "${source}.bak" ]; then
+        echo "Backup file ${source}.bak already exists. Skipping."
+    else
+        cp "$source" "${source}.bak" && echo "Backup created successfully at ${source}.bak"
+    fi
 }
 
 

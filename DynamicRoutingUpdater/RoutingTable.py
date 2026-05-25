@@ -13,12 +13,24 @@ def operationOut(command: str = None) -> None:
 
 class RoutingTable:
     """"""
-    rt_table_file = "/etc/iproute2/rt_tables"
+    _possible_paths = ["/etc/iproute2/rt_tables", "/usr/share/iproute2/rt_tables"]
+
     
     tableBaseName: str = None
     adapterNames: List[str] = []
     
+    @classmethod
+    @property
+    def rt_table_file(cls) -> str:
+        for path in cls._possible_paths:
+            if os.path.exists(path):
+                return path
+        sys.exit(f"Failure: Could not find any rt_tables file in {cls._possible_paths}. Aborting.")
+
     def __init__(self, tableBaseName: str = None, adapterNames: List[str] = []) -> None:
+        # Sjekk umiddelbart om vi har en sti å jobbe med
+        _ = self.rt_table_file 
+        
         if (tableBaseName is None):
             raise ValueError(f"tableBaseName is {tableBaseName}, None is not supported!")
         self.tableBaseName = tableBaseName
