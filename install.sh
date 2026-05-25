@@ -69,7 +69,7 @@ prerequisites() {
     fi
 
     # Installer
-    sudo $PACKAGE_MANAGER $PKGS
+    sudo $INSTALL_CMD $PKGS
     mkdir --parents /usr/local/dynamic-routing-updater/
     sudo chmod -R 0777 /usr/local/dynamic-routing-updater/
     python3 -m venv /usr/local/dynamic-routing-updater/venv
