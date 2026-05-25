@@ -20,16 +20,16 @@ class RoutingTable:
     adapterNames: List[str] = []
     
     @classmethod
-    @property
     def rt_table_file(cls) -> str:
         for path in cls._possible_paths:
             if os.path.exists(path):
                 return path
         sys.exit(f"Failure: Could not find any rt_tables file in {cls._possible_paths}. Aborting.")
 
+
     def __init__(self, tableBaseName: str = None, adapterNames: List[str] = []) -> None:
         # Sjekk umiddelbart om vi har en sti å jobbe med
-        _ = self.rt_table_file 
+        _ = self.rt_table_file()
         
         if (tableBaseName is None):
             raise ValueError(f"tableBaseName is {tableBaseName}, None is not supported!")
@@ -46,7 +46,7 @@ class RoutingTable:
         """
         rt_entries: List[str] = []
         
-        with open(RoutingTable.rt_table_file, "r") as rt_tables:
+        with open(RoutingTable.rt_table_file(), "r") as rt_tables:
             for line in rt_tables:
                 if len(line.strip("\t\r\n")) > 0:
                     rt_entries.append(line.strip("\n"))
@@ -66,7 +66,7 @@ class RoutingTable:
             if directTable.search(line) == None:
                 updatedTables.append(line)
         
-        rewrite = open(self.rt_table_file, "w")
+        rewrite = open(self.rt_table_file(), "w")
         for entry in updatedTables:
             rewrite.write("{}\n".format(entry))
         rewrite.close()
@@ -93,7 +93,7 @@ class RoutingTable:
             appendableTables.append(tableEntry)
             configuredTables[adapter] = ntableName
         logging.info("Creating new tables")
-        with open(self.rt_table_file, "a") as file:
+        with open(self.rt_table_file(), "a") as file:
             for table in appendableTables:
                 file.write("{}\n".format(table))
                 logging.info(f"{table}")

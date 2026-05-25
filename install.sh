@@ -55,7 +55,7 @@ echo "Supported distro: $DISTRO. Using package manager $PACKAGE_MANAGER."
 get_packages() {
     case $DISTRO in
         ubuntu|debian) echo "python3-pip python3-venv whiptail" ;;
-        fedora|nobara) echo "python3-pip python3-venv newt gcc" ;;
+        fedora|nobara) echo "python3 python3-pip python3-devel newt gcc" ;;
     esac
 }
 
@@ -146,6 +146,44 @@ backup() {
 }
 
 
+install_hooks() {
+    echo "Creating DRUHook"
+
+    HOOK_CONTENT='#!/bin/bash
+IFACE="$1"
+STATUS="$2"
+
+echo "DRU - DynamicIpWatcherAction: Registered change to network adapter $IFACE"
+
+if [ -n "$IFACE" ]; then
+    echo -e "$IFACE\n" >> /tmp/dru-hook
+fi
+'
+
+    # NetworkManager dispatcher (Fedora, Nobara, Ubuntu, Debian)
+    if [ -d /etc/NetworkManager/dispatcher.d ]; then
+        echo "Installing hook into NetworkManager dispatcher..."
+        echo "$HOOK_CONTENT" | sudo tee /etc/NetworkManager/dispatcher.d/dru-hook.sh >/dev/null
+        sudo chmod 755 /etc/NetworkManager/dispatcher.d/dru-hook.sh
+    fi
+
+    # systemd-networkd dispatcher (Ubuntu/Debian only)
+    if [ -d /etc/networkd-dispatcher/routable.d ]; then
+        echo "Installing hook into networkd-dispatcher (etc)..."
+        echo "$HOOK_CONTENT" | sudo tee /etc/networkd-dispatcher/routable.d/dru-hook.sh >/dev/null
+        sudo chmod 755 /etc/networkd-dispatcher/routable.d/dru-hook.sh
+    fi
+
+    if [ -d /usr/lib/networkd-dispatcher/routable.d ]; then
+        echo "Installing hook into networkd-dispatcher (usr/lib)..."
+        echo "$HOOK_CONTENT" | sudo tee /usr/lib/networkd-dispatcher/routable.d/dru-hook.sh >/dev/null
+        sudo chmod 755 /usr/lib/networkd-dispatcher/routable.d/dru-hook.sh
+    fi
+
+    echo "Hook installation complete."
+}
+
+
 setup() {
 
     if [ -f "./reference.json" ]; then
@@ -233,33 +271,6 @@ EOL
     referenceAbsPath="/usr/local/dynamic-routing-updater/reference.json"
     sed -i "s^reference.json^$referenceAbsPath^g" /usr/local/dynamic-routing-updater/service.py
 
-    echo "Creating DRUHook"
-
-    echo '
-#! /bin/bash
-
-# Dynamic Routing Updater Hook (DRUHook)
-# A component of DynamicRoutingUpdater
-# 
-# The purpose of DRUHook is to be notified by the system when there are changes to net network interface
-# If this script is placed correctly inside a hook folder for the network manager, 
-# the network manager will call up this script whith the interface that has been updated or altered
-#
-# This script will then proceed to update a temporary file which the service DRU will watch and respond to
-#
-
-IFACE = $1
-STATUS = $2
-
-
-echo "DRU - DynamicIpWatcherAction: Registered change to network adpater $IFACE"
-
-if [ ! -z $IFACE ]; then
-    echo -e "$IFACE\n" >> /tmp/dru-hook
-fi
-' | tee /etc/networkd-dispatcher/routable.d/dru-hook.sh > /usr/lib/networkd-dispatcher/routable.d/dru-hook.sh > /etc/NetworkManager/dispatcher.d/dru-hook.sh 
-
-
     echo "Creating DRU Service"
     cat > /etc/systemd/system/dynamic-routing-updater.service <<EOL
 [Unit]
@@ -275,17 +286,8 @@ Environment=PYTHONUNBUFFERED=1
 [Install]
 WantedBy=multi-user.target
 EOL
-    CHMOD_FILES=(
-    "/etc/networkd-dispatcher/routable.d/dru-hook.sh"
-    "/usr/lib/networkd-dispatcher/routable.d/dru-hook.sh"
-    "/etc/NetworkManager/dispatcher.d/dru-hook.sh"
-    "/usr/local/dynamic-routing-updater/service.py"
-    )
 
-    for FILE in "${CHMOD_FILES[@]}"; do
-        chmod 755 $FILE
-        chmod +x $FILE
-    done
+    install_hooks
 
     chown root:root /usr/local/dynamic-routing-updater/service.py
 
@@ -295,6 +297,7 @@ EOL
     systemctl start dynamic-routing-updater.service
 
     systemctl status dynamic-routing-updater.service
+
 
     echo "Done!"
  #   journalctl -exfu dynamic-routing-updater
